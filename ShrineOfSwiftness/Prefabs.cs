@@ -61,7 +61,7 @@ namespace ShrineOfSwiftness
             purchaseInteraction.displayNameToken = "SHRINE_SWIFTNESS_NAME";
             purchaseInteraction.contextToken = "SHRINE_SWIFTNESS_CONTEXT";
             purchaseInteraction.cost = Main.baseCost.Value;
-            purchaseInteraction.automaticallyScaleCostWithDifficulty = true;
+            purchaseInteraction.automaticallyScaleCostWithDifficulty = false;
 
             var genericDisplayNameProvider = shrinePrefab.GetComponent<GenericDisplayNameProvider>();
             genericDisplayNameProvider.displayToken = "SHRINE_SWIFTNESS_NAME";
@@ -119,11 +119,11 @@ namespace ShrineOfSwiftness
             Main.sosLogger.LogError("most recent scene def cached name is " + SceneCatalog.mostRecentSceneDef.cachedName);
             if (!Main.stagesToAppearOn.Contains(SceneCatalog.mostRecentSceneDef.cachedName))
             {
-                Main.sosLogger.LogError("most recent scene def cached name IS NOT in stages to appear on list");
+                // Main.sosLogger.LogError("most recent scene def cached name IS NOT in stages to appear on list");
                 return;
             }
 
-            Main.sosLogger.LogError("trying to place shrine of swiftness");
+            // Main.sosLogger.LogError("trying to place shrine of swiftness");
 
             var directorPlacementRule = new DirectorPlacementRule
             {
@@ -134,15 +134,17 @@ namespace ShrineOfSwiftness
                     interactableSpawnCard, directorPlacementRule,
                     Run.instance.runRNG));
 
+            /*
             if (shrineInstance)
             {
-                Main.sosLogger.LogError("successfully placed shrine of swiftness");
+                // Main.sosLogger.LogError("successfully placed shrine of swiftness");
                 var purchaseInteraction = shrineInstance.GetComponent<PurchaseInteraction>();
                 if (purchaseInteraction && purchaseInteraction.costType == CostTypeIndex.Money)
                 {
                     purchaseInteraction.Networkcost = Run.instance.GetDifficultyScaledCost(purchaseInteraction.cost);
                 }
             }
+            */
         }
     }
 
@@ -168,8 +170,6 @@ namespace ShrineOfSwiftness
     {
         public int maxPurchaseCount = Main.maxActivations.Value;
 
-        public float costMultiplierPerPurchase = Main.costIncreasePerActivation.Value;
-
         public Transform symbolTransform;
 
         private PurchaseInteraction purchaseInteraction;
@@ -184,6 +184,7 @@ namespace ShrineOfSwiftness
         public Transform dropletOrigin;
 
         public Xoroshiro128Plus rng;
+        public float cachedCostMultiplierPerPurchase;
 
         public override int GetNetworkChannel()
         {
@@ -199,6 +200,8 @@ namespace ShrineOfSwiftness
             {
                 rng = new Xoroshiro128Plus(Run.instance.treasureRng.nextUlong);
             }
+            purchaseInteraction.Networkcost = Run.instance.GetDifficultyScaledCost(Main.baseCost.Value);
+            cachedCostMultiplierPerPurchase = Run.instance.GetDifficultyScaledCost(Main.costIncreasePerActivation.Value);
         }
 
         public void AddShrineStack(Interactor interactor)
@@ -254,7 +257,7 @@ namespace ShrineOfSwiftness
                 if (refreshTimer <= 0f && purchaseCount < maxPurchaseCount)
                 {
                     purchaseInteraction.SetAvailable(newAvailable: true);
-                    purchaseInteraction.Networkcost = (int)((float)purchaseInteraction.cost + costMultiplierPerPurchase);
+                    purchaseInteraction.Networkcost = (int)((float)purchaseInteraction.cost + cachedCostMultiplierPerPurchase);
                     waitingForRefresh = false;
                 }
             }

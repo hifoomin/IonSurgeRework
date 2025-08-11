@@ -55,13 +55,13 @@ namespace ShrineOfSwiftness
             for (int i = 0; i < stagesToAppearOn.Count; i++)
             {
                 var stage = stagesToAppearOn[i];
-                Main.sosLogger.LogError("stages to appear on is " + stage);
+                // Main.sosLogger.LogError("stages to appear on is " + stage);
             }
 
             for (int j = 0; j < itemsToDrop.Count; j++)
             {
                 var item = itemsToDrop[j];
-                Main.sosLogger.LogError("items to drop is " + item);
+                // Main.sosLogger.LogError("items to drop is " + item);
             }
 
             Prefabs.Init();
@@ -70,12 +70,12 @@ namespace ShrineOfSwiftness
         [SystemInitializer(typeof(ItemCatalog))]
         private static void GetItemIndices()
         {
-            Main.sosLogger.LogError("GetItemIndices called");
+            // Main.sosLogger.LogError("GetItemIndices called");
             foreach (ItemDef itemDef in ItemCatalog.allItemDefs)
             {
                 if (itemsToDrop.Contains(itemDef.nameToken))
                 {
-                    Main.sosLogger.LogError("itemstodrop contains itemdef name, adding itemindex to itemindexlist !!");
+                    // Main.sosLogger.LogError("itemstodrop contains itemdef name, adding itemindex to itemindexlist !!");
                     itemIndexList.Add(itemDef.itemIndex);
                 }
             }
@@ -83,7 +83,7 @@ namespace ShrineOfSwiftness
             for (int k = 0; k < itemIndexList.Count; k++)
             {
                 var index = itemIndexList[k];
-                Main.sosLogger.LogError("itemindex is " + index);
+                // Main.sosLogger.LogError("itemindex is " + index);
             }
         }
     }
