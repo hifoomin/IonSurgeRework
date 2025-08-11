@@ -14,8 +14,11 @@ namespace ShrineOfSwiftness
     {
         public static GameObject shrinePrefab;
         public static InteractableSpawnCard interactableSpawnCard;
+        public static GameObject shrineVFX;
         public static void Init()
         {
+            shrineVFX = Addressables.LoadAssetAsync<GameObject>("0fa235b9d7e778f4ba2cd8f2437f72d9").WaitForCompletion();
+            // guid is shrine use effect
             shrinePrefab = PrefabAPI.InstantiateClone(Addressables.LoadAssetAsync<GameObject>("8a681654848ac374980fea55c4cf55a7").WaitForCompletion(), "Shrine of Swiftness");
             // guid is shrine chance
 
@@ -26,7 +29,21 @@ namespace ShrineOfSwiftness
 
             var modelLocator = shrinePrefab.GetComponent<ModelLocator>();
             var modelTransform = modelLocator._modelTransform;
+            modelTransform.name = "mdlShrineSwiftness";
             var meshRenderer = modelTransform.GetComponent<MeshRenderer>();
+
+            var newModelMaterial = new Material(Addressables.LoadAssetAsync<Material>("0de2169c1f513a44a8b439821be523eb").WaitForCompletion());
+            // guid is mat shrine chance
+            newModelMaterial.SetTexture("_MainTex", Addressables.LoadAssetAsync<Texture2D>("50576454418d775439d1c15ea6e3d694").WaitForCompletion());
+            // guid is tex shrine chance ao filtered
+            newModelMaterial.SetColor("_TintColor", Color.white);
+            newModelMaterial.SetFloat("_SpecularStrength", 1f);
+            newModelMaterial.SetFloat("_SpecularExponent", 1.164457f);
+            newModelMaterial.SetFloat("_SnowBias", -1f);
+            newModelMaterial.SetFloat("_Depth", 0.9161675f);
+            newModelMaterial.SetInt("_RampInfo", 4); // ramp choice - subsurface
+
+            meshRenderer.material = newModelMaterial;
 
             // TODO: swap material/texture/color to be marble-like
 
@@ -35,7 +52,7 @@ namespace ShrineOfSwiftness
 
             var newSymbolMaterial = new Material(Addressables.LoadAssetAsync<Material>("4f1b6f101f0d1cb42893fca3d83b9154").WaitForCompletion());
             // guid is mat shrine chance symbol
-            // newSymbolMaterial.SetTexture("_MainTex", Main.bundle.LoadAsset<Sprite>(""));
+            newSymbolMaterial.SetTexture("_MainTex", Main.bundle.LoadAsset<Texture2D>("texShrineOfSwiftnessSymbol.png"));
             newSymbolMaterial.SetColor("_TintColor", new Color32(130, 188, 232, 255));
 
             symbolMeshRenderer.material = newSymbolMaterial;
@@ -90,7 +107,7 @@ namespace ShrineOfSwiftness
             LanguageAPI.Add("SHRINE_SWIFTNESS_CONTEXT", "Offer to Shrine of Swiftness");
             LanguageAPI.Add("SHRINE_SWIFTNESS_USE_MESSAGE", "<style=cShrine>{0} offered to the shrine and received a gift of celerity.</style>");
             LanguageAPI.Add("SHRINE_SWIFTNESS_USE_MESSAGE_2P", "<style=cShrine>You offer to the shrine and receive a gift of celerity.</style>");
-            LanguageAPI.Add("SHRINE_SWIFTNESS_DESCRIPTION", "");
+            LanguageAPI.Add("SHRINE_SWIFTNESS_DESCRIPTION", "When activated by a survivor the Shrine of Swiftness drops a random movement speed item.");
 
             SceneDirector.onPrePopulateSceneServer += OnPrePopulateSceneServer;
 
@@ -98,10 +115,15 @@ namespace ShrineOfSwiftness
 
         private static void OnPrePopulateSceneServer(SceneDirector director)
         {
+            Main.sosLogger.LogError("on pre populate scene server called");
+            Main.sosLogger.LogError("most recent scene def cached name is " + SceneCatalog.mostRecentSceneDef.cachedName);
             if (!Main.stagesToAppearOn.Contains(SceneCatalog.mostRecentSceneDef.cachedName))
             {
+                Main.sosLogger.LogError("most recent scene def cached name IS NOT in stages to appear on list");
                 return;
             }
+
+            Main.sosLogger.LogError("trying to place shrine of swiftness");
 
             var directorPlacementRule = new DirectorPlacementRule
             {
@@ -114,6 +136,7 @@ namespace ShrineOfSwiftness
 
             if (shrineInstance)
             {
+                Main.sosLogger.LogError("successfully placed shrine of swiftness");
                 var purchaseInteraction = shrineInstance.GetComponent<PurchaseInteraction>();
                 if (purchaseInteraction && purchaseInteraction.costType == CostTypeIndex.Money)
                 {
@@ -158,6 +181,9 @@ namespace ShrineOfSwiftness
         private const float refreshDuration = 2f;
 
         private bool waitingForRefresh;
+        public Transform dropletOrigin;
+
+        public Xoroshiro128Plus rng;
 
         public override int GetNetworkChannel()
         {
@@ -168,6 +194,11 @@ namespace ShrineOfSwiftness
         {
             purchaseInteraction = GetComponent<PurchaseInteraction>();
             symbolTransform = transform.Find("Symbol");
+            dropletOrigin = transform.Find("DropletOrigin");
+            if (NetworkServer.active)
+            {
+                rng = new Xoroshiro128Plus(Run.instance.treasureRng.nextUlong);
+            }
         }
 
         public void AddShrineStack(Interactor interactor)
@@ -188,24 +219,31 @@ namespace ShrineOfSwiftness
                 });
             }
 
-            /*
-            EffectManager.SpawnEffect(ShrineOfTheFuture.shrineVFX, new EffectData
+            var randomItemIndex = Main.itemIndexList[rng.RangeInt(0, Main.itemIndexList.Count)];
+
+            var pickupIndex = PickupCatalog.FindPickupIndex(randomItemIndex);
+
+            PickupDropletController.CreatePickupDroplet(pickupIndex, dropletOrigin.position, dropletOrigin.forward * 20f);
+
+            EffectManager.SpawnEffect(Prefabs.shrineVFX, new EffectData
             {
                 origin = base.transform.position,
                 rotation = Quaternion.identity,
-                scale = 1.5f,
-                color = new Color32(96, 20, 87, 255)
+                scale = 1f,
+                color = new Color32(130, 188, 232, 255)
             }, true);
-            // vfx
-            */
 
-            // play sounds here
+            Util.PlaySound("Play_mage_m2_iceSpear_shoot", gameObject);
+            Util.PlaySound("Play_ui_obj_lunarPool_activate", gameObject);
 
             purchaseCount++;
             refreshTimer = 2f;
 
-            symbolTransform.gameObject.SetActive(false);
-            CallRpcSetPingable(false);
+            if (purchaseCount >= maxPurchaseCount)
+            {
+                symbolTransform.gameObject.SetActive(value: false);
+                CallRpcSetPingable(value: false);
+            }
         }
 
         public void FixedUpdate()
